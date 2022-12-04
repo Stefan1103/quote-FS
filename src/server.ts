@@ -1,17 +1,17 @@
 import express, { Request, Response, NextFunction } from "express";
 import http from "http";
-import mongoose, { mongo } from "mongoose";
+import mongoose, { Callback, mongo } from "mongoose";
 import { config } from "./config/config";
 import Logging from "./library/Logging";
 import axios from "axios";
-import { IQuote, IQuotes } from "./library/interfaces";
+import { IQuotes } from "./library/interfaces";
 import Quotes from "./models/Quotes";
 import quotesRoutes from "./routes/Quotes";
 
 const router = express();
 
 /** Connect to Mongo */
-const connectDB = async () => {
+const connectDB = async (): Promise<void> => {
   try {
     await mongoose.connect(config.mongo.url, {
       retryWrites: true,
@@ -26,7 +26,7 @@ const connectDB = async () => {
 };
 connectDB();
 
-const StartServer = () => {
+const StartServer = (): void => {
   router.use((req: Request, res: Response, next: NextFunction) => {
     /** Log the Request */
     Logging.info(
@@ -34,7 +34,7 @@ const StartServer = () => {
     );
 
     /**Log the Response */
-    res.on("finish", () => {
+    res.on("finish", (): void => {
       Logging.info(
         `Outgoing -> Method: [${req.method}] - Url: [${req.url}] - IP: [${req.socket.remoteAddress}] - Status: [${res.statusCode}]`,
       );
@@ -62,14 +62,14 @@ const StartServer = () => {
   });
 
   /**Routes */
-  router.use("/", require("./routes/Quotes"));
+  router.use("/", quotesRoutes);
 
-  /** Healthcheck */
-  router.get("/ping", (req, res, next) =>
+  /** server check */
+  router.get("/success", (req: Request, res: Response, next: NextFunction) =>
     res.status(200).json({ message: "success" }),
   );
   /**Error Handling */
-  router.use((req, res, next) => {
+  router.use((req: Request, res: Response, next: NextFunction) => {
     const error = new Error("not found");
     Logging.error(error);
     return res.status(404).json({ message: error.message });
@@ -77,7 +77,7 @@ const StartServer = () => {
   /** CALL External API */
   const url = "https://api.quotable.io/quotes";
 
-  const getQuotes = async () => {
+  const getQuotes = async (): Promise<void> => {
     try {
       const response = await axios.get(url);
       const results: IQuotes = await response.data;
@@ -107,7 +107,7 @@ const StartServer = () => {
 
   http
     .createServer(router)
-    .listen(config.server.port, () =>
+    .listen(config.server.port, (): void =>
       Logging.info(`Server is running on port ${config.server.port}.`),
     );
 };
